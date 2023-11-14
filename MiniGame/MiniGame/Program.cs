@@ -1,25 +1,28 @@
-﻿internal class Program
+﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
+
+internal class Program
 {
     private static Character player;
     private static List<Item> myitems;
     private static List<Item> shopitems;
     private static string equipText = "";
+    private static int myItemCnt = 0;
 
     static void Main(string[] args)
     {
         GameDataSetting();
         DisplayGameIntro();
-    }
+    }                                                                             
 
     static void GameDataSetting()
     {
         // 캐릭터 정보 세팅
-        player = new Character("Chad", "전사", 1, 10, 5, 100, 1500);
+        player = new Character("Chad", "전사", 1, 10, 5, 100, 100000);
 
         // 아이템 정보 세팅
         myitems = new List<Item>
         {
-
         };
 
         shopitems = new List<Item>
@@ -77,10 +80,10 @@
         }
         Console.Clear();
 
-        Console.WriteLine("상태보기");
+       ShowHighlightedText("■ 상태보기 ■");
         Console.WriteLine("캐릭터의 정보를 표시합니다.");
         Console.WriteLine();
-        Console.WriteLine($"Lv.{player.Level}");
+        PrintTextWithHighlights("Lv. ", player.Level.ToString("00")); // 레벨 2자리로 표시
         Console.WriteLine($"{player.Name}({player.Job})");
         Console.WriteLine($"공격력 :{player.Atk + sumAtK} +({sumAtK})");
         Console.WriteLine($"방어력 :{player.Def + sumDef} +({sumDef})");
@@ -102,7 +105,7 @@
     {
         Console.Clear();
 
-        Console.WriteLine("인벤토리");
+        ShowHighlightedText("■ 인벤토리 ■");
         Console.WriteLine("보유 중인 아이템을 관리할 수 있습니다.");
         Console.WriteLine();
         Console.WriteLine("[아이템 목록]");
@@ -130,7 +133,7 @@
     static void EquipManagement()
     {
         Console.Clear();
-        Console.WriteLine("인벤토리 - 장착 관리");
+        ShowHighlightedText("■ 인벤토리 - 장착 관리 ■");
         Console.WriteLine("보유 중인 아이템을 장착할 수 있습니다.");
         Console.WriteLine();
         Console.WriteLine("[아이템 목록]");
@@ -138,7 +141,7 @@
         EquipCheck();
 
         Console.WriteLine("\n0. 나가기");
-        Console.WriteLine("\n아이템 번호를 입력하면 장착/해제 가능합니다.");
+        ShowHighlightedText("\n아이템 번호를 입력하면 장착/해제 가능합니다.");
         Console.WriteLine("원하시는 행동을 입력해주세요.");
 
         // 0 - 나가기 버튼, 나머지는 아이템 리스트
@@ -147,7 +150,6 @@
         {
             DisplayInventory();
             // 더 이상 아래 문장을 실행할 이유가 없기때문에 바로 return
-            // 코드의 흐름을 더 명확하게 이해 + 가독성 향상 및 함수간의 관계 명확
             return;
         }
 
@@ -207,7 +209,7 @@
     static void Shop()
     {
         Console.Clear();
-        Console.WriteLine("상점");
+        ShowHighlightedText("■ 상점 ■");
         Console.WriteLine("필요한 아이템을 얻을 수 있는 상점입니다.\n");
         Console.WriteLine("[보유 골드]");
         Console.WriteLine($"{player.Gold} G\n");
@@ -255,30 +257,15 @@
     static void ShopSellManagement()
     {
         Console.Clear();
-        Console.WriteLine("상점 - 아이템 판매");
-        Console.WriteLine("필요한 아이템을 얻을 수 있는 상점입니다.\n");
+        ShowHighlightedText("■ 상점 - 아이템 판매 ■\n");
         Console.WriteLine("[보유 골드]");
         Console.WriteLine($"{player.Gold} G\n");
         Console.WriteLine("내가 보유한 아이템 목록");
-        for(int i = 0; i<myitems.Count; i++)
-        {
-            // 공격력만 가진 아이템, 방어력만 가진 아이템, 공격력 방어력 모두 가진 아이템으로 구분
-            if (myitems[i].ItemDef == 0)
-            {
-                Console.WriteLine($"- {i+1} {myitems[i].ItemName} | 공격력 +{myitems[i].ItemAtk} | {myitems[i].ItemInfo} | {myitems[i].ItemPrice} G");
-            }
-            else if (myitems[i].ItemAtk == 0)
-            {
-                Console.WriteLine($"- {i + 1} {myitems[i].ItemName} | 방어력 +{myitems[i].ItemDef} | {myitems[i].ItemInfo} | {myitems[i].ItemPrice} G");
-            }
-            else
-            {
-                Console.WriteLine($"- {i + 1} {myitems[i].ItemName} | 공격력 +{myitems[i].ItemAtk} | 방어력 +{myitems[i].ItemDef} | {myitems[i].ItemInfo} | {myitems[i].ItemPrice} G");
-            }
-        }
+
+        EquipCheck();
 
         Console.WriteLine("\n0. 나가기");
-        Console.WriteLine("\n아이템 번호를 선택하면 판매 가능합니다.");
+        ShowHighlightedText("\n아이템 번호를 선택하면 판매 가능합니다.");
         Console.WriteLine("원하시는 행동을 입력해주세요.");
 
         int input = CheckValidInput(0, myitems.Count);
@@ -288,19 +275,52 @@
             return;
         }
 
-        // 팔 수 있으면
-        if (myitems[input-1].IsSell == true)
+        if (myitems[input-1].IsEquip == true)
         {
+            Console.WriteLine("장착된 아이템은 판매할 수 없습니다. 장착 해제하고 판매하시겠습니까? (Y/N)");
+            ConsoleKeyInfo key = Console.ReadKey();
 
+            if (char.ToLower(key.KeyChar) == 'y')
+            {
+                player.Gold += (int)(myitems[input - 1].ItemPrice * 0.8); // 플레이어 골드 수정
+                for(int i = 0; i<shopitems.Count; i++) // 상점에 다시 들어왔으니깐, 팔리지 않았다고 표시
+                {
+                    if(myitems[input-1].ItemName == shopitems[i].ItemName)
+                    {
+                        shopitems[i].IsSell = false;
+                    }
+                }
+                myitems.RemoveAt(input - 1); // 리스트에서 제거
+            }
+            else
+            {
+                Console.WriteLine("장착이 유지됩니다.");
+            }
         }
+        else
+        {
+            player.Gold += (int)(myitems[input - 1].ItemPrice * 0.8); // 플레이어 골드 수정
+            for (int i = 0; i < shopitems.Count; i++) // 상점에 다시 들어왔으니깐, 팔리지 않았다고 표시
+            {
+                if (myitems[input - 1].ItemName == shopitems[i].ItemName)
+                {
+                    shopitems[i].IsSell = false;
+                }
+            }
+            myitems.RemoveAt(input - 1); // 리스트에서 제거
+        }
+        
+        //생각해보면 myitems로 들어간 리스트에서 isSell은 아무런 역할도 안하는데, 이렇게 되면 클래스관리를 잘 못하고 있는건가?
+
+        ShopSellManagement();
     }
 
     // 아이템 구매 관리
     static void ShopBuyManagement()
     {
+
         Console.Clear();
-        Console.WriteLine("상점 - 아이템 구매");
-        Console.WriteLine("필요한 아이템을 얻을 수 있는 상점입니다.\n");
+        ShowHighlightedText("■ 상점 - 아이템 구매 ■\n");
         Console.WriteLine("[보유 골드]");
         Console.WriteLine($"{player.Gold} G\n");
         Console.WriteLine("아이템 목록");
@@ -322,7 +342,7 @@
         }
 
         Console.WriteLine("\n0. 나가기");
-        Console.WriteLine("\n아이템 번호를 선택하면 구매 가능합니다.");
+        ShowHighlightedText("\n아이템 번호를 선택하면 구매 가능합니다.");
         Console.WriteLine("원하시는 행동을 입력해주세요.");
 
         int input = CheckValidInput(0, shopitems.Count);
@@ -360,6 +380,22 @@
         }
 
         ShopBuyManagement();
+    }
+
+    static void ShowHighlightedText(string text)
+    {
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine(text);
+        Console.ResetColor();
+    }
+
+    static void PrintTextWithHighlights(string s1, string s2, string s3 = "")
+    {
+        Console.Write(s1);
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.Write(s2);
+        Console.ResetColor();
+        Console.WriteLine(s3);
     }
 }
 
